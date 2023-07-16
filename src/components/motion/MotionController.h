@@ -1,11 +1,12 @@
 #pragma once
 
 #include <cstdint>
-
 #include <FreeRTOS.h>
+#include <math.h>
 
 #include "drivers/Bma421.h"
 #include "components/ble/MotionService.h"
+#include "components/ble/OSDService.h"
 
 namespace Pinetime {
   namespace Controllers {
@@ -35,6 +36,10 @@ namespace Pinetime {
         return nbSteps;
       }
 
+      uint32_t Magnitude() const {
+        return sqrt(x * x + y * y + z * z);
+      }
+
       void ResetTrip() {
         currentTripSteps = 0;
       }
@@ -60,6 +65,10 @@ namespace Pinetime {
         this->service = service;
       }
 
+      void SetOSDService(Pinetime::Controllers::OSDService* osdService) {
+        this->osdService = osdService;
+      }
+
     private:
       uint32_t nbSteps = 0;
       uint32_t currentTripSteps = 0;
@@ -78,6 +87,7 @@ namespace Pinetime {
 
       DeviceTypes deviceType = DeviceTypes::Unknown;
       Pinetime::Controllers::MotionService* service = nullptr;
+      Pinetime::Controllers::OSDService* osdService = nullptr;
     };
   }
 }

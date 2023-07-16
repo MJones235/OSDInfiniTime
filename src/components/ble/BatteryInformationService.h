@@ -31,9 +31,11 @@ namespace Pinetime {
       static constexpr ble_uuid16_t batteryLevelUuid {.u {.type = BLE_UUID_TYPE_16}, .value = batteryLevelId};
 
       struct ble_gatt_chr_def characteristicDefinition[3];
-      struct ble_gatt_svc_def serviceDefinition[2];
+      struct ble_gatt_chr_def osdCharacteristicDefinition[2];
+      struct ble_gatt_svc_def serviceDefinition[3];
 
       uint16_t batteryLevelHandle;
+      uint16_t osdBatteryLevelHandle;
     };
   }
 }

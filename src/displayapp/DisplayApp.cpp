@@ -461,7 +461,7 @@ void DisplayApp::LoadScreen(Apps app, DisplayApp::FullRefreshDirections directio
       currentScreen = std::make_unique<Screens::Alarm>(alarmController, settingsController.GetClockType(), *systemTask, motorController);
       break;
     case Apps::OSD:
-      currentScreen = std::make_unique<Screens::OSD>(heartRateController, *systemTask);
+      currentScreen = std::make_unique<Screens::OSD>(motionController, heartRateController, *systemTask);
       break;
 
     // Settings

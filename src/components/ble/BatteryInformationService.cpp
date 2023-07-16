@@ -4,6 +4,18 @@
 
 using namespace Pinetime::Controllers;
 
+namespace {
+  // GATT UUIDs
+  // 000085xx-0000-1000-8000-00805f9b34fb
+  constexpr ble_uuid128_t OSDCharUuid(uint8_t x) {
+    return ble_uuid128_t {.u = {.type = BLE_UUID_TYPE_128},
+                          .value = {0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, x, 0x85, 0x00, 0x00}};
+  }
+
+  constexpr ble_uuid128_t osdServiceUuid {OSDCharUuid(0xe9)};  // OSD service UUID
+  constexpr ble_uuid128_t osdBattCharUuid {OSDCharUuid(0xeb)}; // battery level characteristic
+}
+
 constexpr ble_uuid16_t BatteryInformationService::batteryInformationServiceUuid;
 constexpr ble_uuid16_t BatteryInformationService::batteryLevelUuid;
 
@@ -20,11 +32,21 @@ BatteryInformationService::BatteryInformationService(Controllers::Battery& batte
                                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
                                .val_handle = &batteryLevelHandle},
                               {0}},
+    osdCharacteristicDefinition {{.uuid = &osdBattCharUuid.u,
+                                  .access_cb = BatteryInformationServiceCallback,
+                                  .arg = this,
+                                  .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+                                  .val_handle = &osdBatteryLevelHandle},
+                                 {0}},
     serviceDefinition {
-      {/* Device Information Service */
+      {/* Battery Information Service */
        .type = BLE_GATT_SVC_TYPE_PRIMARY,
        .uuid = &batteryInformationServiceUuid.u,
        .characteristics = characteristicDefinition},
+      {/* OSD Service */
+       .type = BLE_GATT_SVC_TYPE_PRIMARY,
+       .uuid = &osdServiceUuid.u,
+       .characteristics = osdCharacteristicDefinition},
       {0},
     } {
 }
@@ -39,8 +61,8 @@ void BatteryInformationService::Init() {
 }
 
 int BatteryInformationService::OnBatteryServiceRequested(uint16_t attributeHandle, ble_gatt_access_ctxt* context) {
-  if (attributeHandle == batteryLevelHandle) {
-    NRF_LOG_INFO("BATTERY : handle = %d", batteryLevelHandle);
+  if (attributeHandle == batteryLevelHandle || attributeHandle == osdBatteryLevelHandle) {
+    NRF_LOG_INFO("BATTERY : handle = %d", attributeHandle);
     uint8_t batteryValue = batteryController.PercentRemaining();
     int res = os_mbuf_append(context->om, &batteryValue, 1);
     return (res == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -51,4 +73,5 @@ int BatteryInformationService::OnBatteryServiceRequested(uint16_t attributeHandl
 void BatteryInformationService::NotifyBatteryLevel(uint16_t connectionHandle, uint8_t level) {
   auto* om = ble_hs_mbuf_from_flat(&level, 1);
   ble_gattc_notify_custom(connectionHandle, batteryLevelHandle, om);
+  ble_gattc_notify_custom(connectionHandle, osdBatteryLevelHandle, om);
 }

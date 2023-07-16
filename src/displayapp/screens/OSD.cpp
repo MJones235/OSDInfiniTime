@@ -8,51 +8,38 @@
 using namespace Pinetime::Applications::Screens;
 
 namespace {
-  const char* ToString(Pinetime::Controllers::HeartRateController::States s) {
-    switch (s) {
-      case Pinetime::Controllers::HeartRateController::States::NotEnoughData:
-        return "Not enough data,\nplease wait...";
-      case Pinetime::Controllers::HeartRateController::States::NoTouch:
-        return "No touch detected";
-      case Pinetime::Controllers::HeartRateController::States::Running:
-        return "Measuring...";
-      case Pinetime::Controllers::HeartRateController::States::Stopped:
-        return "Stopped";
-    }
-    return "";
-  }
-
   void btnStartStopEventHandler(lv_obj_t* obj, lv_event_t event) {
     auto* screen = static_cast<OSD*>(obj->user_data);
     screen->OnStartStopEvent(event);
   }
 }
 
-OSD::OSD(Controllers::HeartRateController& heartRateController, System::SystemTask& systemTask)
-  : heartRateController {heartRateController}, systemTask {systemTask} {
+OSD::OSD(Controllers::MotionController& motionController,
+         Controllers::HeartRateController& heartRateController,
+         System::SystemTask& systemTask)
+  : motionController {motionController}, heartRateController {heartRateController}, systemTask {systemTask} {
   bool isHrRunning = heartRateController.State() != Controllers::HeartRateController::States::Stopped;
+
+  // print app title
+  lv_obj_t* title = lv_label_create(lv_scr_act(), nullptr);
+  lv_label_set_text_static(title, "OpenSeizure\nDetector");
+  lv_obj_set_style_local_text_font(title, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_bold_20);
+  lv_label_set_align(title, LV_LABEL_ALIGN_CENTER);
+  lv_obj_align(title, lv_scr_act(), LV_ALIGN_IN_TOP_MID, 0, 0);
+
+  // display clock
+  label_time = lv_label_create(lv_scr_act(), nullptr);
+  lv_obj_set_style_local_text_font(label_time, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_extrabold_compressed);
+  lv_obj_align(label_time, lv_scr_act(), LV_ALIGN_IN_RIGHT_MID, 0, -20);
+
+  // display current heart rate
   label_hr = lv_label_create(lv_scr_act(), nullptr);
+  lv_label_set_text_static(label_hr, "Fetching HR...");
+  lv_obj_align(label_hr, label_time, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
 
-  lv_obj_set_style_local_text_font(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, &jetbrains_mono_76);
-
-  if (isHrRunning) {
-    lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::highlight);
-  } else {
-    lv_obj_set_style_local_text_color(label_hr, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, Colors::lightGray);
-  }
-
-  lv_label_set_text_static(label_hr, "000");
-  lv_obj_align(label_hr, nullptr, LV_ALIGN_CENTER, 0, -40);
-
-  label_bpm = lv_label_create(lv_scr_act(), nullptr);
-  lv_label_set_text_static(label_bpm, "Heart rate BPM");
-  lv_obj_align(label_bpm, label_hr, LV_ALIGN_OUT_TOP_MID, 0, -20);
-
-  label_status = lv_label_create(lv_scr_act(), nullptr);
-  lv_obj_set_style_local_text_color(label_status, LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
-  lv_label_set_text_static(label_status, ToString(Pinetime::Controllers::HeartRateController::States::NotEnoughData));
-
-  lv_obj_align(label_status, label_hr, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+  // display battery level
+  label_battery = lv_label_create(lv_scr_act(), nullptr);
+  lv_obj_align(label_battery, label_hr, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
 
   btn_startStop = lv_btn_create(lv_scr_act(), nullptr);
   btn_startStop->user_data = this;
@@ -76,7 +63,6 @@ OSD::~OSD() {
 }
 
 void OSD::Refresh() {
-
   auto state = heartRateController.State();
   switch (state) {
     case Controllers::HeartRateController::States::NoTouch:
@@ -87,9 +73,6 @@ void OSD::Refresh() {
     default:
       lv_label_set_text_fmt(label_hr, "%03d", heartRateController.HeartRate());
   }
-
-  lv_label_set_text_static(label_status, ToString(state));
-  lv_obj_align(label_status, label_hr, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
 }
 
 void OSD::OnStartStopEvent(lv_event_t event) {
